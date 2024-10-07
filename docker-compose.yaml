@@ -1,0 +1,11 @@
+version: '3.9'
+
+services:
+  deepseek-prover:
+    build: .
+    container_name: deepseek_prover
+    volumes:
+      - .:/app
+    working_dir: /app
+    tty: true
+    stdin_open: true
