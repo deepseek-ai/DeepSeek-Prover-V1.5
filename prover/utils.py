@@ -4,6 +4,7 @@ import pytz
 from pathlib import Path
 from datetime import datetime
 from collections import UserDict
+import importlib.util
 from importlib.machinery import SourceFileLoader
 from easydict import EasyDict as AttrDict
 
@@ -57,7 +58,10 @@ def get_datetime(readable=False):
 
 def load_config(fname):
     name = Path(fname).stem
-    mod = SourceFileLoader(name, fname).load_module()
+    loader = SourceFileLoader(name, fname)
+    spec = importlib.util.spec_from_loader(name, loader, origin=fname)
+    mod = importlib.util.module_from_spec(spec)
+    loader.exec_module(mod)
 
     config = {}
     for n in dir(mod):
