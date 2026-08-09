@@ -29,6 +29,13 @@ class GeneratorProcess(mp.Process):
     def run(self):
         seed = int(time.time()) % 1000 + (self.node_rank * 8 + self.local_rank) * 1000
         os.environ['LOCAL_RANK'] = str(self.local_rank)
+        # Restrict this child process to a single visible GPU so vLLM places
+        # the model on the intended device. Without this, every spawned
+        # worker process sees all GPUs and vLLM ends up loading the model
+        # on cuda:0 in every process, exhausting memory on the first GPU
+        # regardless of `local_rank`. This is the same pattern used by
+        # `torchrun` and `accelerate launch`. See issue #11.
+        os.environ['CUDA_VISIBLE_DEVICES'] = str(self.local_rank)
         llm = LLM(model=self.model_path, max_num_batched_tokens=8192, seed=seed, trust_remote_code=True)
         while True:
             inputs = self.task_queue.get()
