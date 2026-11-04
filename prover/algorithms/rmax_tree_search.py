@@ -143,18 +143,24 @@ class RMaxTS(SamplingAlgorithmBase):
     # tree structure supports
     def _tree_setup(self, data):
         # initialize tree
-        ckpt_info = None
+        restored_checkpoint = None
         for _ckpt_path in [self.ckpt_path, self.ckpt_path + '.backup']:
             if os.path.exists(_ckpt_path):
                 try:
                     with open(_ckpt_path, 'rb') as pkl_f:
                         ckpt_info = pickle.load(pkl_f)
+                    if ckpt_info is not None:
+                        # Restore the whole candidate before accepting it; the backup is older.
+                        restored_checkpoint = (
+                            self.node_cls.from_dict(ckpt_info['root']),
+                            ckpt_info['sample_count'],
+                            ckpt_info['yield_cache'],
+                        )
+                        break
                 except:
                     self.process_print(f'Checkpoint saved at {_ckpt_path} is broken.')
-        if ckpt_info is not None:
-            root = self.node_cls.from_dict(ckpt_info['root'])
-            sample_count = ckpt_info['sample_count']
-            yield_cache = ckpt_info['yield_cache']
+        if restored_checkpoint is not None:
+            root, sample_count, yield_cache = restored_checkpoint
             self.process_print(f'Load checkpoint from sample_count={sample_count}')
         else:
             root = self.node_cls(code=dict(tactic_code=str(), state_comment=str()), depth=0)
