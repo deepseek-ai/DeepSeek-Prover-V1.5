@@ -36,7 +36,16 @@ def verify_lean4_file(code, lake_path=DEFAULT_LAKE_PATH, lean_workspace=DEFAULT_
             temp_file.write(message_str + "\r\n\r\n")
             temp_file.seek(0)
             outputs = subprocess.run([lake_path, "exe", 'repl'], stdin=temp_file, capture_output=True, text=True, cwd=lean_workspace, timeout=timeout)
+        outputs.check_returncode()
         result = json.loads(outputs.stdout)
+        if not isinstance(result, dict):
+            raise ValueError('Lean REPL response must be a JSON object')
+        if 'message' in result:
+            raise ValueError(f"Lean REPL error: {result['message']}")
+        # CommandResponse always has env, but omits empty messages/sorries.
+        # An Error response must not become success through those defaults.
+        if type(result.get('env')) is not int or result['env'] < 0:
+            raise ValueError('Lean REPL command response requires a natural-number env')
         ast_results = lean4_parser(code, result['ast']) if 'ast' in result and result['ast'] else {}
         result = {
             "sorries" : result.get('sorries', []), 
